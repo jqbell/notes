@@ -1,22 +1,44 @@
-# UI / component libraries
+# Content
 
-https://svelte-mui.ibbf.ru/textfield
+-   [Terminology](#terminology)
+-   [Svelte](#svelte)
+-   [Install via Vite](#install-via-vite)
+-   [Use Vite in existing Svelte app](#use-vite-in-existing-svelte-app)
+-   [Install via Degit - Old deprecated](#install-via-degit---old-deprecated)
+-   [VS Code extensions](#vs-code-extensions)
+-   [Formatter](#formatter)
+-   [Injected components](#injected-components)
+-   [Basics](#basics)
+-   [Reactivity](#reactivity)
+-   [Props](#props)
+-   [Logic](#logic)
+-   [Events](#events)
+-   [Binding](#binding)
+-   [Lifecycle](#lifecycle)
+-   [Stores](#stores)
+-   [Motions](#motions)
+-   [Transitions](#transitions)
+-   [CSS](#css)
+-   [Composition](#composition)
+-   [Context API](#context-api)
+-   [Special elements](#special-elements)
+-   [Debugging](#debugging)
+-   [Routing](#routing)
+-   [Rollup](#rollup)
+-   [SvelteKit](#sveltekit)
+-   [UI component libraries](#ui-component-libraries)
 
-https://illright.github.io/attractions/
+# Terminology
 
-https://ibm.github.io/carbon-components-svelte/?path=/story/button--default
+**Svelte** - Language, a compiler and a frontend framework.
 
-https://smeltejs.com/components/date-pickers
+**SvelteKit** - Full-stack meta-framework built on top of Svelte. SvelteKit is to Svelte, what Next.js is to React.
 
-https://docs.svelteit.dev/
+**Vite** - Build tool and dev server which uses rollup for bundling. It obfuscates a bunch of the configuration and has an EXTREMELY fast dev server built in, which uses native ES modules rather than traditional bundling everything in one file.
 
-https://illright.github.io/attractions/
+**Rollup** - Default bundler for production. Rollup is still the bundler when you're using Vite (and you have a `rollupOptions` on your `vite.config.js` if you want to configure it). Rollup's job is to take your application's source files (so far, just `src/main.js` and `src/App.svelte`), pass them to other programs (including Svelte, in our case) and convert them into the code that will actually run when you open the application in a browser.
 
-https://madewithsvelte.com/
-
-https://svelte-community.netlify.app/code/
-
-# About
+# Svelte
 
 Svelte converts your app into ideal JavaScript at build time, rather than interpreting your application code at run time. This means you don't pay the performance cost of the framework's abstractions, and you don't incur a penalty when your app first loads.
 
@@ -37,9 +59,225 @@ const app = new App({
 export default app;
 ```
 
+# Install via Vite
+
+A tool to quickly start a project from a basic template for popular frameworks.
+
+Vite uses the native ES modules feature in the browser to handle imports, while Webpack and Rollup use a more traditional approach of bundling all the files together.
+
+```bash
+# Create scaffold via a Vite CLI install prompt
+npm create vite@latest
+```
+
+![Vite](../pics/svelte/svelte_vite.jpg)
+
+One thing you may have noticed is that in a Vite project, `index.html` is front-and-central instead of being tucked away inside public. This is intentional: during development Vite is a server, and `index.html` is the entry point to your application.
+
+Vite treats `index.html` as source code and part of the module graph. It resolves `<script type="module" src="...">` that references your JavaScript source code. Even inline `<script type="module">` and CSS referenced via `<link href>` also enjoy Vite-specific features. In addition, URLs inside index.html are automatically rebased so there's no need for special `%PUBLIC_URL%` placeholders.
+
+**package.json**
+
+```json
+{
+    "name": "vite-svelte",
+    "private": true,
+    "version": "0.0.0",
+    "type": "module",
+    "scripts": {
+        "dev": "vite",
+        "build": "vite build",
+        "preview": "vite preview"
+    },
+    "devDependencies": {
+        "@sveltejs/vite-plugin-svelte": "^2.0.2",
+        "svelte": "^3.55.1",
+        "vite": "^4.1.0"
+    }
+}
+```
+
+When you npm run build every file and folder from `public` is copied into `dist`.
+
+```bash
+# install dependencies
+npm install # if ENOENT: npm cache verify; npm update;
+
+# starts a dev server http://localhost:5173
+npm run dev
+
+# create a production-ready version of your app in /dist (copies everything from public into dist)
+npm run build
+```
+
+**IMPORTANT:** Setup Vite to work with server API on different port.
+
+```js
+import { defineConfig } from "vite";
+import { svelte } from "@sveltejs/vite-plugin-svelte";
+
+// https://vitejs.dev/config/
+export default defineConfig({
+    plugins: [svelte()],
+    server: {
+        proxy: {
+            "/api": "http://localhost:9999",
+            "/auth": "http://localhost:9999",
+            "/socket.io": {
+                target: "ws://localhost:9999",
+                ws: true,
+            },
+        },
+    },
+});
+```
+
+# Use Vite in existing Svelte app
+
+1. `package.json` → remove every 'rollup' devDependency
+2. `package.json` → remove 'sirv-cli' dependency
+3. `npm install vite @sveltejs/vite-plugin-svelte --save-dev`
+4. remove `rollup.config.js`
+5. add `vite.config.js`
+
+```
+import { defineConfig } from 'vite';
+import { svelte } from '@sveltejs/vite-plugin-svelte';
+
+export default defineConfig({
+    plugins: [
+        svelte({
+            /* plugin options */
+        })
+    ]
+});
+```
+
+6. modify `package.json`
+
+```
+"scripts": {
+  "build": "vite build",
+  "dev": "vite",
+  "start": "vite preview"
+}
+```
+
+7. move `index.html` from `/public` to project root directory
+8. delete `/public/build` folder
+9. in `index.html` remove the `bundle.css`
+10. in `index.html` replace `build/bundle.js` with `<script type="module" src="/src/main.js"></script>`
+11. and you’re done! run `npm run dev` to start working
+12. optionally add [preserveLocalState setting](https://youtu.be/D66wC4VsgVU?t=271) to quickly activate it in case needed
+
+```
+export default defineConfig({
+    plugins: [
+        svelte({
+            hot: {
+                // preserveLocalState: true
+            }
+        })
+    ]
+});
+```
+
+13. Add `/dist` folder to `.gitignore` after first build.
+
+# Install via Degit - Old deprecated
+
+**npx** - Package runner (part of `npm`), that runs a package (degit), without having it as a dependency.
+
+**degit** - Downloader of the last commit of a git repository. When you run degit `some-user/some-repo`, it will find the latest commit on `https://github.com/some-user/some-repo` and download the associated tar file to `~/.degit/some-user/some-repo/commithash.tar.gz` if it doesn't already exist locally. This is much quicker than using `git clone`, because you're not downloading the entire git history.
+
+```bash
+# download last commit of sveltejs/template in specified location
+npx degit sveltejs/template my-app
+```
+
+![Degit](../pics/svelte/svelte_degit.jpg)
+
+**package.json**
+
+```json
+{
+    "name": "svelte-app",
+    "version": "1.0.0",
+    "private": true,
+    "type": "module",
+    "scripts": {
+        "build": "rollup -c",
+        "dev": "rollup -c -w",
+        "start": "sirv public --no-clear"
+    },
+    "devDependencies": {
+        "@rollup/plugin-commonjs": "^24.0.0",
+        "@rollup/plugin-node-resolve": "^15.0.0",
+        "@rollup/plugin-terser": "^0.4.0",
+        "rollup": "^3.15.0",
+        "rollup-plugin-css-only": "^4.3.0",
+        "rollup-plugin-livereload": "^2.0.0",
+        "rollup-plugin-svelte": "^7.1.2",
+        "svelte": "^3.55.0"
+    },
+    "dependencies": {
+        "sirv-cli": "^2.0.0"
+    }
+}
+```
+
+```bash
+# install dependencies
+npm install # if ENOENT: npm cache verify; npm update;
+
+# starts a default server http://localhost:5000
+npm run dev
+
+# starts a custom server http://localhost:4444
+HOST=127.0.0.1 PORT=4444 npm run dev
+
+# create a production-ready version of your app in /public/bundle.js.
+npm run build
+```
+
+# VS Code extensions
+
+-   Svelte for VS Code
+-   Svelte Intellisense
+
+# Formatter
+
+1. Install the `prettier` extension.
+2. install the `svelte.svelte-vscode` extension.
+3. `CTRL + SHIFT + P` command `settings.json` open settings
+4. Add this line.
+
+    ```
+    "[svelte]": {
+        "editor.defaultFormatter": "svelte.svelte-vscode"
+    },
+    ```
+
+5. Create a local `.prettierrc` file in the project.
+6. Add this in the file.
+
+    ```
+    {
+    "trailingComma": "es5",
+    "svelteSortOrder": "scripts-markup-styles",
+    "tabWidth": 4
+    }
+    ```
+
+7. **Explicitly restart the language server** with this command `Svelte: Restart Language Server`. **IT WILL NOT WORK WITHOUT THIS**. This needs to be done after each change to the settings.
+
 # Injected components
 
+## **Node.js**
+
 Or, we can then import the component and instantiate with `new`.
+
+**Svelte main.js**
 
 ```js
 import App from "./App.svelte";
@@ -47,74 +285,65 @@ import App from "./App.svelte";
 export default App;
 ```
 
-```js
-const bundle = require(`./bundle.js`);
+**Nodejs module app.js**
 
-let app = new bundle({
-    target: document.getElementById("app"),
-});
+```js
+const bundle = require(`../svelte/public/build//bundle.js`);
+
+module.exports = async (ctx) => {
+    let html = `
+        <div id="app" class="content-table"></div>
+    `;
+
+    content.innerHTML = html;
+
+    new bundle({
+        target: document.getElementById("app"),
+        props: {
+            foo: "bar",
+        },
+    });
+};
+```
+
+**nodejs index.js**
+
+```js
+page("/app", app);
 ```
 
 In order for this to work in `node` and be further bundled in an existing non-svelte app, we need this setting in `rollup.config.js`.
 
 ```js
-output: {
-    sourcemap: true,
-    format: "cjs",
-    file: "public/build/bundle-module.js",
-},
+export default {
+    input: "src/main.js",
+    output: {
+        sourcemap: true,
+        format: "cjs",
+        name: "app",
+        file: "public/build/bundle.js",
+    },
+};
 ```
 
-# Install
+## **Browser**
 
-Create a new project in the my-svelte-project directory, install its dependencies, and start a server.
+**main.js**
 
-```bash
-# create a new project in the my-svelte-project directory
-npx degit sveltejs/template my-svelte-project
+Just reference the DOM element in the bundle.
 
-# npx degit sveltejs/template . # in the current folder
+```js
+import App from "./App.svelte";
 
-# navigate to folder
-cd my-svelte-project
+const app = new App({
+    target: document.getElementById("app"),
+    props: {
+        name: "world",
+    },
+});
 
-# install dependencies
-npm install
-
-# starts a default server http://localhost:5000
-npm run dev
-
-# starts a custom server http://localhost:5000
-HOST=127.0.0.1 PORT=4444 npm run dev
-
-# create a production-ready version of your app in /public/bundle.js.
-npm run build
+export default app;
 ```
-
-### **degit**
-
-`degit` a project scaffolder that makes copies of git repositories.
-
-When you run degit `some-user/some-repo`, it will find the latest commit on `https://github.com/some-user/some-repo` and download the associated tar file to `~/.degit/some-user/some-repo/commithash.tar.gz` if it doesn't already exist locally.
-
-This is much quicker than using `git clone`, because you're not downloading the entire git history.
-
-### **npx**
-
-`npx` is a package runner (part of `npm`), that runs a package (degit), without having it as a dependency.
-
-### **rollup**
-
-The default bundler is `Rollup`.
-
-Running the `dev` script starts a program called `Rollup`. Rollup's job is to take your application's source files (so far, just `src/main.js` and `src/App.svelte`), pass them to other programs (including Svelte, in our case) and convert them into the code that will actually run when you open the application in a browser.
-
-### **extensions**
-
-VS code extensions:
-
--   Svelte for VS Code
--   Svelte Intellisense
 
 # Basics
 
@@ -329,6 +558,18 @@ Example
 <button on:click="{addNumber}">Add a number</button>
 ```
 
+## Reactive async
+
+Updates the products when the company changes.
+
+```js
+async function fetchProducts(id) {
+    $products = await utils.fetchGet(`/api/companies/${$companyId}/products`);
+}
+
+$: fetchProducts($dashboardId);
+```
+
 # Props
 
 n any real application, you'll need to pass data from one component down to its children. To do that, we need to declare properties, generally shortened to `props`.
@@ -443,7 +684,7 @@ Nested.svelte
 ## Loop
 
 ```html
-{#each items as item (item.id), i}
+{#each items as item, i (item.id}
 <p>{item.value}</p>
 {/each}
 ```
@@ -643,6 +884,48 @@ Note that interacting with these `<input>` elements will mutate the array. If yo
 <input type="checkbox" bind:checked="{todo.done}" />
 
 <input placeholder="What needs to be done?" bind:value="{todo.text}" />
+```
+
+## Element / Node
+
+We can reference any html element like this.
+
+```html
+<script>
+    let element = null;
+</script>
+
+<div bind:this="{element}" />
+```
+
+## Component
+
+Whole componets can be bound for easier calling.
+
+**parent - App.svelte**
+
+```html
+<script>
+    import Component from "./Component.svelte";
+    let component;
+    let test;
+</script>
+
+<Component bind:this="{component}" bind:test />
+
+<button on:click="{component.test}">component</button>
+
+<button on:click="{test}">function</button>
+```
+
+**child - Component.svelte**
+
+```html
+<script>
+    export function test() {
+        console.log("test");
+    }
+</script>
 ```
 
 ## Number
@@ -882,6 +1165,12 @@ When you update component state in Svelte, it doesn't update the DOM immediately
 
 Not all application state belongs inside your application's component hierarchy. Sometimes, you'll have values that need to be accessed by multiple unrelated components, or by a regular JavaScript module.
 
+There are 3 types of stores:
+
+-   **Readable:** These store values are read-only and are used when none of your components should be able to edit the value.
+-   **Writable:** These store values can be updated by any of your components.
+-   **Derived:** These store values are considered “reactive” values - they are derived from other store values and computed or mapped into a new value. They will automatically update when the value they are derived from changes.
+
 ## Writeable
 
 In Svelte, we do this with stores. A store is simply an object with a `subscribe` method that allows interested parties to be notified whenever the store value changes.
@@ -1101,6 +1390,54 @@ App.svelte
 
 The `$name += '!'` assignment is equivalent to `name.set($name + '!')`.
 
+## Update vs set
+
+`update()` is a built-in method on Svelte stores that you can use to update the value of a given writable store. update() takes one argument: a callback function. This callback function receives the current value of the store as its argument, and then returns an updated value that overrides the current value. This method is particularly **useful when you want the new value to be some value relative to the current value**, for example, incremented by 1.
+
+Alternatively, you can use the `set()` method to update a writable store. set() takes one argument, which is the new value. **Svelte will override the store's current value with this new value**.
+
+```js
+// adds 1 to the current value
+counter.update((c) => c + 1);
+counter.update((c) => {
+    return c + 1;
+});
+
+// sets it to five, regardless of the current value
+counter.set(5);
+```
+
+## Update store outside component
+
+**stores.js**
+
+```js
+import { writable } from "svelte/store";
+
+export const cart = writable([]);
+export const messageObject = writable({});
+```
+
+**utils.js** (Non svelte file)
+
+```js
+import { messageObject, cart } from "../stores.js";
+
+export async function addToCart(sku, quantity) {
+    await fetchPost("/api/cart", { sku, quantity });
+
+    let cartData = await getCart();
+
+    cart.update(() => cartData);
+
+    messageObject.update(() => ({
+        showMessage: true,
+        type: "success",
+        message: "Product added successfully.",
+    }));
+}
+```
+
 # Motions
 
 Tweening = inbeTweening i.e adding an effect between a start and end state ex. progress bar.
@@ -1179,7 +1516,7 @@ Only plays when the immediate parent block is added or removed.
 <div transition:slide|local>{item}</div>
 ```
 
-# Classes CSS
+# CSS
 
 ```html
 <button class="{current === 'foo' ? 'active' : ''}" on:click="{() => current = 'foo'}">foo</button>
@@ -1620,7 +1957,7 @@ Put this in `package.json`
 "start": "sirv public --single"
 ```
 
-`sirv` is an optimized and lightweight middleware for serving requests to static assets.
+`sirv` is middleware for serving the public folder i.e. the production app.
 
 `--single` treats the directory as a single-page application. When true, the directory's index page (default index.html) will be sent if the request asset does not exist.
 
@@ -1691,3 +2028,44 @@ About.svelte
 <Link label={'Home'} page={''} />
 <div class="container">ABOUT</div>
 ```
+
+# Rollup
+
+Remove `console.log` and `comments` in production.
+
+```js
+// rollup.config.js
+
+import { terser } from "rollup-plugin-terser";
+
+export default {
+    input: "src/main.js",
+    output: {
+        //
+    },
+    plugins: [
+        terser({
+            compress: { drop_console: true },
+            output: { comments: false },
+        }),
+    ],
+};
+```
+
+# SvelteKit
+
+SvelteKit is to Svelte, what Next.js is to React.
+
+Sveltekit uses vitejs for the build process, but vitejs can also generate multiple starter projects, including svelte. This is old school svelte, where you can install your own router and keep it a simple SPA. I agree its frustrating, there's a constant "upsell" from svelte to sveltekit. But not everybody wants its weird file based routing, and SSR is completely unnecessary for many SPA apps (and many SPA's that use SSR shouldn't even be SPAs in the first place because they are web sites, not web apps.). And even if you can turn off SSR with some kind of "adapter", why should you even bother with it in the first place?
+
+# UI component libraries
+
+-   https://svelte-mui.ibbf.ru/textfield
+-   https://illright.github.io/attractions/
+-   https://ibm.github.io/carbon-components-svelte/?path=/story/button--default
+-   https://smeltejs.com/components/date-pickers
+-   https://docs.svelteit.dev/
+-   https://illright.github.io/attractions/
+-   https://madewithsvelte.com/
+-   https://svelte-community.netlify.app/code/
+-   https://framework7.io/

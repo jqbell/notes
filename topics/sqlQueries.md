@@ -1,3 +1,50 @@
+# STRING_AGG / mysql group_concat
+
+```sql
+select
+	sku,
+	STRING_AGG(category, ', ')
+from categories
+group by
+    sku
+```
+
+# Only numbers
+
+```sql
+select barcode
+from barcodes
+where barcode not like '%[^0-9]%'
+```
+
+# Remove trailing zeros
+
+```sql
+select cast(barcode as int)
+```
+
+# Order a sub-query
+
+Using `top 99.9999 percent` is a hack to achieve the ordering.
+
+Note that `top 100 percent` won't work.
+
+```sql
+select
+    sku,
+    STRING_AGG(attribute, ', ') attributes
+from (
+    select top 99.9999999999999 percent
+        sku,
+        attribute
+    from attributes
+    order by
+        sku asc,
+        attribute asc
+) t1
+group by sku
+```
+
 # Declare Variables
 
 ```sql
@@ -12,6 +59,8 @@ SELECT @count;
 
 # UPDATE from SELECT / TABLE
 
+SQL server
+
 ```sql
 -- select
 UPDATE product
@@ -20,14 +69,26 @@ FROM (
     SELECT sku, newPrice
     FROM pricelist
 ) t2
-WHERE
-    product.sku = t2.sku
+WHERE product.sku = t2.sku
 
 -- table
 UPDATE product
 SET product.price = t2.newPrice
 FROM t2
 WHERE product.sku = t2.sku
+```
+
+MySQL
+
+```sql
+update
+    product p,
+    (
+        select sku, newPrice
+        from pricelist
+    ) t2
+set product.price = t2.newPrice
+where product.sku = t2.sku
 ```
 
 # INSERT from SELECT
@@ -45,16 +106,25 @@ FROM table1
 WHERE condition;
 ```
 
+# DELETE from SELECT
+
+```sql
+delete from product
+where id in (
+    select id
+    from t2
+    where condition = 'foo'
+)
+```
+
 # DELETE from LEFT JOIN
 
 ```sql
 DELETE t1 -- Just from table1. DELETE t1, t2 for both tables
 FROM table1 t1
-	LEFT JOIN table2 t2
-		ON t1.id = t2.id
+	LEFT JOIN table2 t2 ON t1.id = t2.id
 WHERE
-	t1.criteria = 'foo'
-	AND t2.criteria = 'bar'
+	t1.criteria = 'foo' AND t2.criteria = 'bar'
 ```
 
 # Row Number
@@ -189,17 +259,29 @@ from sales
 It defines a temporary result set which can be used in a SELECT statement.
 
 ```sql
--- CTE
-WITH Employee_CTE (EmployeeNumber, Title) AS (
-    SELECT
-        NationalIDNumber,
-        JobTitle
-    FROM HumanResources.Employee
-)
--- Query using CTE
-SELECT EmployeeNumber,
-       Title
-FROM Employee_CTE
+WITH
+    salesrep AS (
+        SELECT
+            employeeNumber,
+            CONCAT(firstName, ' ', lastName) AS salesrepName
+        FROM
+            employees
+        WHERE
+            jobTitle = 'Sales Rep'
+    ),
+    customer_salesrep AS (
+        SELECT
+            customerName, salesrepName
+        FROM
+            customers
+                INNER JOIN
+            salesrep ON employeeNumber = salesrepEmployeeNumber
+    )
+SELECT
+    *
+FROM
+    customer_salesrep
+ORDER BY customerName;
 ```
 
 # Rollup (Total Row)
@@ -481,4 +563,87 @@ order by ym desc
 
 -- execution
 EXEC (@sql)
+```
+
+# Bulk insert
+
+Fastest, but has a limit of 1,000 inserts.
+
+```js
+await request.query(`
+    insert into table 
+        (column1, column2, column3)
+    values 
+        ('foo', 'bar', 'baz'),
+        ('foo', 'bar', 'baz'),
+        ('foo', 'bar', 'baz')
+    ;
+`);
+```
+
+Best
+
+```js
+await request.query(`
+    insert into table 
+        (column1, column2, column3)
+    values 
+        ('foo', 'bar', 'baz');
+
+    insert into table 
+        (column1, column2, column3)
+    values 
+        ('foo', 'bar', 'baz');
+
+    insert into table 
+        (column1, column2, column3)
+    values 
+        ('foo', 'bar', 'baz');
+`);
+```
+
+Slowest
+
+```js
+await request.query(`
+    insert into table 
+        (column1, column2, column3)
+    values 
+        ('foo', 'bar', 'baz');
+`);
+
+await request.query(`
+    insert into table 
+        (column1, column2, column3)
+    values 
+        ('foo', 'bar', 'baz');
+`);
+
+await request.query(`
+    insert into table 
+        (column1, column2, column3)
+    values 
+        ('foo', 'bar', 'baz');
+`);
+```
+
+# Multiple sums
+
+```sql
+select
+    mi.acIdent,
+    m.acissuer,
+    datediff(day, max(m.adDate), getdate()) lastSaleDays,
+    sum(CASE WHEN m.adDate >= getdate() - 30 THEN mi.anQty ELSE 0 END) soldPastDaysQty,
+    sum(CASE WHEN m.adDate between getdate() - (365 * 1) and getdate() - (365 * 1 - 30) THEN mi.anQty ELSE 0 END) soldNextDaysOneYearAgoQty,
+    sum(CASE WHEN m.adDate between getdate() - (365 * 2) and getdate() - (365 * 2 - 30) THEN mi.anQty ELSE 0 END) soldNextDaysTwoYearsAgoQty,
+    sum(CASE WHEN m.adDate between getdate() - (365 * 3) and getdate() - (365 * 3 - 30) THEN mi.anQty ELSE 0 END) soldNextDaysThreeYearsAgoQty,
+    sum(CASE WHEN m.adDate between getdate() - (365 * 4) and getdate() - (365 * 4 - 30) THEN mi.anQty ELSE 0 END) soldNextDaysFourYearsAgoQty
+from the_moveitem mi
+    left join the_move m on mi.acKey = m.acKey
+where
+    m.adDate > getdate() - 365 * 4
+group by
+    mi.acident,
+    m.acIssuer
 ```

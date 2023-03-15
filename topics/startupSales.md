@@ -1,12 +1,20 @@
+# Call to action (CTA)
+
+Always end with a **call to action** (CTA). Never let the prospect dictate the next step. Never let it end with you waiting on them to act when they want.
+
+# Important
+
 Are you targeting executives? Directors? Managers? Lower level staff?
 
 How your product works with each of those levels will be different because the expectations and needs of customers at these levels are all different.
 
 **Remember, you’re not selling into a company, you’re selling into a role at the company.**
 
-**People don’t buy products, they buy experiences involving products from people like them or people they aspire to be.**
+**People don’t buy products, they buy experiences involving products from people like them or people they aspire to be. People buy end results.**
 
-People don’t like sales people but love implementation people. Your website should be doing all of the heavy lifting and you should be implementing really intelligent ways to collect data about interested parties so that you can customize your follow up with them. It’s never about getting them on the phone to talk about their business, it’s always about what you can already know about their business and showing that you can provide value towards improving it.
+People don’t like sales people but love implementation people. Your website should be doing all of the heavy lifting and you should be implementing really intelligent ways to collect data about interested parties so that you can customize your follow up with them.
+
+It’s never about getting them on the phone to talk about their business, it’s always about what you can already know about their business and showing that you can provide value towards improving it.
 
 # How to Sell - Tyler Bosemy
 
@@ -104,7 +112,7 @@ _This is 2 months of work for closing a \$100,000/year customer_
 
 The potential client has a lot on their mind that's not you. Being persistent is not rude if done the right way.
 
-**In order to not be push, follow up a little under a week (5-6 days)**... As long as it's thoughful and personalized.
+**In order to not be pushy, follow up a little under a week (5-6 days)**... As long as it's thoughful and personalized.
 
 It's a lot of work to do sales well and it takes a lot of follow up. You have to have an inhumane willingness to just keep going.
 
@@ -143,6 +151,8 @@ Either sign a conditional agreement, or wait to hear demand from more customers.
 -   Free trial gets you **none** of these.
 
 Instead, offer a first 30 days cancellation period on an annual contract.
+
+If you're ever going to **not** charge someone, put together an invoice anyway, with a 100% one-time discount, so that there's a record of the "value" of the job.
 
 ## Looking forward
 

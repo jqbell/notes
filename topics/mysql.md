@@ -16,6 +16,12 @@
 -   Don't go crazy with `joins`.
 -   Don't use varchar(255). Try to use the lowest number possible.
 
+# RAM usage
+
+SQL engines will consume as much memory as you will allow.
+
+The reason for this is that the engine caches the data in RAM, so that it can access if faster than it could if it needed to read the data from the disk every time a user needed it.
+
 # Install MySQL
 
 ```bash
@@ -95,7 +101,7 @@ GRANT ALL PRIVILEGES ON * . * TO 'user'@'localhost';
 FLUSH PRIVILEGES;
 
 -- List all users.
-SELECT USER();
+SELECT user FROM mysql.user;
 
 -- Show current user.
 SELECT CURRENT_USER();
@@ -137,7 +143,7 @@ CREATE DATABASE dbName;     -- Create a database.
 DROP DATABASE dbName;       -- Delete a database.
 ```
 
-## Tables
+# Tables
 
 ### Create
 
@@ -233,7 +239,7 @@ WHERE
 SELECT tableName, COLUMNNAME, CONSTRAINT_NAME, REFERENCED_tableName, REFERENCED_COLUMNNAME FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE WHERE REFERENCED_tableName = 'my_table';
 ```
 
-## Records
+# Records
 
 ```sql
 -- Get records.
@@ -290,17 +296,34 @@ ON DUPLICATE KEY UPDATE
 
 ```sql
 -- Check the size of all the databases
-SELECT table_schema AS "database",
-ROUND(SUM(data_length + index_length) / 1024 / 1024, 2) AS "Size (MB)"
+SELECT
+	table_schema,
+	ROUND(SUM(data_length + index_length) / 1024 / 1024, 2) "Size (MB)"
 FROM information_schema.TABLES
 GROUP BY table_schema;
 
 -- Check the size of all the tables in a database
-SELECT tableName AS "table",
-ROUND(((data_length + index_length) / 1024 / 1024), 2) AS "Size (MB)"
+SELECT
+	  table_name,
+    ROUND(((data_length + index_length) / 1024 / 1024), 2) "Size (MB)"
 FROM information_schema.TABLES
-WHERE table_schema = "database_name" -- Change this one
+WHERE table_schema = "DATABASE_NAME" -- DATABASE_NAME
 ORDER BY (data_length + index_length) DESC;
+```
+
+# Timezone
+
+1. Add this line in `/etc/mysql/my.cnf`
+
+```bash
+[mysqld]
+default-time-zone = "+01:00"
+```
+
+2. Restart the server
+
+```
+sudo service mysql restart
 ```
 
 # Backup
@@ -310,6 +333,9 @@ To do this, we use the `mysqldump` command which creates a file with the SQL sta
 With `--all-databases` or `--databases`, mysqldump writes `CREATE DATABASE` and `USE` statements prior to the dump output for each database, in order to insure the data goes to the right database.
 
 ```bash
+# Dump just the data, without creating the database
+mysqldump dbName > backup.sql
+
 mysqldump --add-drop-table --databases dbName > backup.sql
 
 # Simplest command.
@@ -354,31 +380,6 @@ sudo crontab -e
 59 23 * * * mysqldump -u root --password="db-pass" --all-databases > /home/user/backups/"backup-all-$(date +%Y%m%d-%H%M%S).sql"
 ```
 
-```bash
-# Command is used: ./sync.sh database-name
-
-# database name is passed from outside as first variable
-# filename is set ex. database-20200903-235516
-# remote and local paths defined
-# remote: backup from selected database
-# remote>local: retrieve the backup
-# local: import the database in mysql
-
-database=$1
-
-filename="$database-$(date +%Y%m%d-%H%M%S)"
-
-remotepath="/home/user/databases/backups/"
-localpath="/mnt/c/user/dev/lab/traker-databases/"
-
-echo "backing up remotepath: database $filename"
-ssh user@123.456.789.255 "mysqldump -u root --password="pass" --databases $database > $remotepath$filename"\
-&& echo "fetching from remotepath to local: database $filename" \
-&& rsync -av user@123.456.789.255:$remotepath$filename $localpath \
-&& echo "importing into msql: database $filename" \
-&& mysql -u root --password="pass" < $filename
-```
-
 # Restore
 
 If the dump was created without using `--databases`, then the database must be manually created before restoring.
@@ -399,6 +400,56 @@ gzip -d < backup.sql.gz | mysql
 
 # If the database already exists and we want to restore it.
 mysql dbName < backup.sql
+```
+
+# Transfer
+
+Copy data from one database into another.
+
+```
+mysqldump -u root -p'password' source_db | mysql -u root -p'password' target_db
+```
+
+# Import/Export
+
+**Import from remote to local**
+
+```bash
+remotepath="/remote/path/backups/"
+localpath="/local/path/backups/"
+
+filename="dbname-$(date +%Y%m%d-%H%M%S)-import"
+
+echo "backup: $filename"
+
+echo "creating backup at remote server..."
+ssh user@123.456.789.255 "mysqldump -u root --password="pass" --databases dbname > $remotepath$filename"\
+\
+&& echo "downloading backup from remotepath to local..." \
+&& rsync -av user@123.456.789.255:$remotepath$filename $localpath \
+\
+&& echo "importing backup into local mysql..." \
+&& mysql -u root --password="pass" < $localpath$filename
+```
+
+**Export from local to remote**
+
+```bash
+remotepath="/remote/path/backups/"
+localpath="/local/path/backups/"
+
+filename="dbname-$(date +%Y%m%d-%H%M%S)-export"
+
+echo "backup: $filename"
+
+echo "creating local backup..."
+mysqldump -u root --password="" dbname > $localpath$filename \
+\
+&& echo "transfering backup from local to remotepath..." \
+&& rsync -av -e 'ssh' $localpath$filename user@123.456.789.255:$remotepath \
+\
+&& echo "importing transfered backup into remote mysql..." \
+&& ssh user@123.456.789.255 "mysql -u root --password="pass" dbname < $remotepath$filename" \
 ```
 
 # MySQL Workbench
@@ -437,3 +488,62 @@ It's a utility used to find out what could be done in order to optimize MySQL fo
 It needs a bit of data to work properly, so a period should pass before running it, as it looks for usage patterns.
 
 To run it, just use `mysqltuner`.
+
+# Dynamic Columns / Pivot
+
+```sql
+SET @sql = NULL;
+SET @textColumns = NULL;
+SET @numberColumns = NULL;
+SET @dateColumns = NULL;
+
+SELECT
+  GROUP_CONCAT(
+	DISTINCT CONCAT('max(IF(f.uid = ''', f.uid, ''', dt.value, NULL))', f.uid)
+  ) INTO @textColumns
+FROM dataText dt
+	left join field f on f.id = dt.fieldId
+    left join entity e on e.id = f.entityId
+where e.uid = 'XirQSpRrPP';
+
+SELECT
+  GROUP_CONCAT(
+	DISTINCT CONCAT('max(IF(f.uid = ''', f.uid, ''', dn.value, NULL))', f.uid)
+  ) INTO @numberColumns
+FROM dataNumber dn
+	left join field f on f.id = dn.fieldId
+    left join entity e on e.id = f.entityId
+where e.uid = 'XirQSpRrPP';
+
+SELECT
+  GROUP_CONCAT(
+	DISTINCT CONCAT('max(IF(f.uid = ''', f.uid, ''', dd.value, NULL))', f.uid)
+  ) INTO @dateColumns
+FROM dataDate dd
+	left join field f on f.id = dd.fieldId
+    left join entity e on e.id = f.entityId
+where e.uid = 'XirQSpRrPP';
+
+SET @sql = CONCAT('
+	select
+		r.id,
+		r.uid,
+		', @textColumns, ',
+		', @numberColumns, ',
+        ', @dateColumns, '
+   from record r
+		left join entity e on e.id = r.entityId
+		left join field f on f.entityId = e.id
+		left join dataText dt on dt.recordId = r.id
+		left join dataNumber dn on dn.recordId = r.id
+        left join dataDate dd on dd.recordId = r.id
+	where e.uid = ''XirQSpRrPP''
+	group by
+		r.id,
+		r.uid
+');
+
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+```
